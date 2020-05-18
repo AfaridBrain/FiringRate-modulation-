@@ -12,11 +12,12 @@ class Receptors_5HT():
         self.du =   Stm_duration
         self.st =   tfn_switch_time
         self.t  =   sp.arange(0,100, self.dt)
-        self.dl =   3
+        
 
         #persistance firing rate, and delay#    
         self.pr =   10
-        self.d  =   0
+        self.d1  =   50
+        self.d2  =   0
         
 
 
@@ -78,7 +79,7 @@ class Receptors_5HT():
 
             for k,s in enumerate(I):
 
-                rr += s* ( self.tf_5HTR1A(n-k-50) + self.tf_5HTR2A(n-k-0) )
+                rr += s* ( self.tf_5HTR1A(n-k-self.d1) + self.tf_5HTR2A(n-k-self.d2) )
 
                 "print(s, self.tf_5HTR2A(n-k),rr)"
                 "print(n,p,k) "
