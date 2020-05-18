@@ -1,0 +1,107 @@
+import  numpy   as np
+from    scipy   import  signal
+import  scipy   as sp
+import matplotlib.pyplot as plt 
+
+class Receptors_5HT():
+
+    def __init__(self, Stm_init, Stm_duration, receptor, tfn_switch_time):
+        self.R  =   receptor
+        self.dt =   .1
+        self.t0 =   Stm_init
+        self.du =   Stm_duration
+        self.st =   tfn_switch_time
+        self.t  =   sp.arange(0,100, self.dt)
+        self.dl =   3
+
+        #persistance firing rate, and delay#    
+        self.pr =   10
+        self.d  =   0
+        
+
+
+    def _input(self):
+        inpt    =   np.zeros(self.du)
+        inpt[self.t0:(self.t0+2)] =   1.
+        return inpt
+
+       
+    def tf_5HTR1A(self,time):
+        T   =   np.size(self.t)
+        y   =   np.zeros(T)
+        ST  =   self.st[0]   
+        y[0:ST]= 5*(np.exp(-self.t[0:ST]/(1))-1)
+        y[ST:T]= -np.exp(-self.t[ST:T]/2.5)
+        y[ST:T]= (y[ST-1]/y[ST])* y[ST:T]
+        
+        if any("5-HT1A" in s for s in self.R):
+            print(1)
+            return  y[time]
+        else:
+            print(0.10)
+            return  0
+        """        
+        if (self.R[:]  ==  '5_HT1A'):
+            return  y[time]
+        else:
+            return  0
+        """
+
+    def tf_5HTR2A(self,time):
+        T   =   np.size(self.t)
+        y   =   np.zeros(T)
+        s   =   self.st[1]   
+        y[0:s]    =   (1-np.exp(-self.t[0:s]/5))
+        y[s:T]    =   np.exp(-self.t[s:T]/25)
+        y[0:s]    =   (y[s]/y[s-1]) * y[0:s]
+        
+        if any("5-HT2A" in s for s in self.R):
+            print(1)
+            return  y[time]
+        else:
+            print(0)
+            return  0
+        
+        """        
+        if (self.R[:]  ==  '5_HT2A'):
+            return  y[time]
+        else:
+            return  0
+        """
+    def GABA(self):
+        
+        I   =   self._input()
+        rr  =   0
+        r   =   []
+
+        for n,p in enumerate(self.t):
+
+            for k,s in enumerate(I):
+
+                rr += s* ( self.tf_5HTR1A(n-k-50) + self.tf_5HTR2A(n-k-0) )
+
+                "print(s, self.tf_5HTR2A(n-k),rr)"
+                "print(n,p,k) "
+                
+            r=np.append(r,[rr+ self.pr])
+            rr=0 
+
+        return r, I 
+
+
+#plot multi activity 
+x   =   Receptors_5HT(9,20,["5-HT1A","5-HT2A"],[900,200])
+"""x   =   Receptors_5HT(9,20,["5-HT2A"],[900,200])"""
+
+#plot single activity 
+"""x   =   Receptors_5HT(9,20,["5-HT1A","5-HT2A"],[900,200])
+y   =   Receptors_5HT(9,20,"5-HT1A",900)"""
+
+R, I= x.GABA()
+plt.plot(I,'k')
+plt.plot(R,'m')
+plt.title('5-HTR1A & 5-HTR2A activities')
+plt.ylabel('firing rate') 
+plt.xlabel('time') 
+
+plt.show()
