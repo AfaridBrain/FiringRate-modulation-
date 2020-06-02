@@ -1,0 +1,179 @@
+import  numpy   as np
+from    scipy   import  signal
+import  scipy   as sp
+import matplotlib.pyplot as plt 
+
+class circuit_motif():
+
+    def __init__(self, stm, receptor, tfn_switch_time):
+        self.I  =   stm
+        self.R  =   receptor
+        self.dt =   .1
+        self.dt1    =   .3
+        self.st =   tfn_switch_time
+        self.t  =   sp.arange(-100,100, self.dt)
+        self.t1 =   sp.arange(0,20, self.dt)
+
+
+        #persistance firing rate, and delay#    
+        self.pr =   10
+        self.d1 =   0
+        self.d2 =   0
+        self.d  =   1
+        self.Bpn  =   16
+        self.Bin  =   13
+        
+        #Synaptic weight
+        self.wi =   -.5      
+        self.we =   .5      
+        self.wpn    =   .2      
+        self.win    =   -.1     
+        self.tau_PN =   .03     
+        self.tau_IN =   .03     
+
+
+    def feedforward_input(self):
+
+        I   =   np.zeros(np.size(self.t1))
+        for r,s in enumerate(self.t1):
+            if(s>=5) & (s<=17):
+                I[r]=4
+    
+        Hi  =   self.wi* I   
+        He  =   self.we* I 
+        return   Hi, He
+   
+    def tf_5HTR1A(self,time):
+        T   =   np.size(self.t)
+        y   =   np.zeros(T)                                   
+        ST  =   self.st[0]   
+        y[0:ST]= 5*(np.exp(-self.t[0:ST]/(1))-1)
+        y[ST:T]= -np.exp(-self.t[ST:T]/2.5)
+        y[ST:T]= (y[ST-1]/y[ST])* y[ST:T]
+        
+        if any("5-HT1A" in s for s in self.R):
+            return  y[time]
+        else:
+            return  0
+
+    def tf_5HTR2A(self,time):
+        T   =   np.size(self.t)
+        y   =   np.zeros(T)
+        s   =   self.st[1]   
+        y[0:s]    =   (1-np.exp(-self.t[0:s]/5))
+        y[s:T]    =   np.exp(-self.t[s:T]/25)
+        y[0:s]    =   (y[s]/y[s-1]) * y[0:s]
+        
+        if any("5-HT2A" in s for s in self.R):
+            
+            return  y[time]
+        else:
+            
+            return  0
+
+    def tf_GABA(self,r):    
+
+        y   =   r
+        if(r<0):
+            y   =   0
+
+        return  y 
+
+
+    def tf_Glu(self,r):    
+
+        y   =   22* (1- np.exp(-(r+5)/3))
+        if(r<0):
+            y   =   22* (np.exp((r-5)/3))
+        return y
+
+
+    def PN(self): 
+        
+        Hi, He  =   self.feedforward_input()
+
+        u   =   []
+        v   =   []
+        u= np.append(u,[0])
+        v= np.append(v,[0])
+        dv  =   0
+        vv  =   0
+        uu  =   0
+
+        for n, p in enumerate(self.t1):
+
+            if(n>0):
+                "uu  =   He[n-1]+ self.wpn* v[n-1]"
+                uu  =   self.Bpn
+
+                dv  =   (-v[n-1]+ self.tf_Glu(uu))* self.dt / self.tau_PN
+                print(He[n-1],u[n-1],dv)
+
+                vv  =   v[n-1]+ dv* self.dt
+                v   =   np.append(v,[vv])
+                u   =   np.append(u,[uu])
+        
+        return He, u, v ,self.t1
+            
+
+    def IN(self): 
+        
+        Hi, He  =   self.feedforward_input()
+        He, u_PN, v_PN, T =   self.PN()
+
+        u   =   []
+        v   =   []
+        u= np.append(u,[0])
+        v= np.append(v,[0])
+        dv  =   0
+        vv  =   0
+        uu  =   0
+
+        for n, p in enumerate(self.t1):
+
+            if(n>0):
+                "uu  =   He[n-1]+ self.win* v[n-1]+ self.we* v_PN[n-1]"
+                "uu  =   He[n-1]"
+                uu  =   self.Bin 
+
+                dv  =   (-v[n-1]+ self.tf_GABA(uu))* self.dt / self.tau_IN
+                print(He[n-1],u[n-1],dv)
+
+                vv  =   v[n-1]+ dv* self.dt
+                v   =   np.append(v,[vv])
+                u   =   np.append(u,[uu])
+        
+        return He, u, v ,self.t1
+
+
+I=np.zeros(25)
+I[13:16]=10.
+
+x   =   circuit_motif(I,["5-HT2A"],[900,200])
+"""
+He, U, V, t= x.PN()
+"""
+He, U, V, t= x.IN()
+
+t1 =   sp.arange(-20,20, .1)
+
+y=[]
+
+for n,p in enumerate(t1):
+    yy=x.tf_GABA(p)
+    y=np.append(y,[yy])
+
+fig1=plt.figure()
+plt.plot(t1,y)
+fig=plt.title('GABAergic transfer function')
+
+
+fig=plt.figure()
+fig=plt.title('basic IN & OUT of IN-UNIT')
+"plt.plot(t,He,'k',label='feedfwrd rate')"
+plt.plot(t,U,'b',label='input rate')
+plt.plot(t,V,'r',label='out rate')
+plt.ylabel('firing rate')
+plt.legend()
+
+plt.show()
