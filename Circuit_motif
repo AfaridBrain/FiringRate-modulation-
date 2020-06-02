@@ -1,0 +1,151 @@
+import  numpy   as np
+from    scipy   import  signal
+import  scipy   as sp
+import matplotlib.pyplot as plt 
+
+class circuit_motif():
+
+    def __init__(self, stm, receptor, tfn_switch_time):
+        self.I  =   stm
+        self.R  =   receptor
+        self.dt =   .1
+        self.dt1    =   .3
+        self.st =   tfn_switch_time
+        self.t  =   sp.arange(-100,100, self.dt)
+        self.t1 =   sp.arange(0,50, self.dt)
+
+
+        #persistance firing rate, and delay#    
+        self.pr =   10
+        self.d1 =   0
+        self.d2 =   0
+        self.d  =   1
+        self.Bpn  =   16
+        self.Bin  =   13
+        
+        #Synaptic weight
+        self.wpn_in =   .5      
+        self.win_pn =   -1      
+        self.wpn    =   .8      
+        self.win    =   -.1   
+        self.tau_PN =   .030     
+        self.tau_IN =   .030     
+
+
+    def feedforward_input(self):
+
+        I   =   np.zeros(np.size(self.t1))
+        for r,s in enumerate(self.t1):
+            if(s>=5) & (s<=17):
+                I[r]=4
+    
+        Hi  =   self.win_pn* I   
+        He  =   self.wpn_in* I 
+        return   Hi, He
+   
+    def tf_5HTR1A(self,time):
+        T   =   np.size(self.t)
+        y   =   np.zeros(T)                                   
+        ST  =   self.st[0]   
+        y[0:ST]= 5*(np.exp(-self.t[0:ST]/(1))-1)
+        y[ST:T]= -np.exp(-self.t[ST:T]/2.5)
+        y[ST:T]= (y[ST-1]/y[ST])* y[ST:T]
+        
+        if any("5-HT1A" in s for s in self.R):
+            return  y[time]
+        else:
+            return  0
+
+    def tf_5HTR2A(self,time):
+        T   =   np.size(self.t)
+        y   =   np.zeros(T)
+        s   =   self.st[1]   
+        y[0:s]    =   (1-np.exp(-self.t[0:s]/5))
+        y[s:T]    =   np.exp(-self.t[s:T]/25)
+        y[0:s]    =   (y[s]/y[s-1]) * y[0:s]
+        
+        if any("5-HT2A" in s for s in self.R):
+            
+            return  y[time]
+        else:
+            
+            return  0
+
+    def tf_GABA(self,r):    
+
+        y   =   r
+        if(r<0):
+            y   =   0
+        return  y 
+
+
+    def tf_Glu(self,r):    
+
+        y   =   22* (1- np.exp(-(r+5)/3))
+        if(r<0):
+            y   =   22* (np.exp((r-5)/3))
+        return y
+
+    def circuit(self): 
+        
+        "Hi, He  =   self.feedforward_input()"
+        u_pn, v_pn  =   [], []
+        v_in  =   []
+        u_pn= np.append(u_pn,[0])
+        v_pn= np.append(v_pn,[0])
+        v_in= np.append(v_in,[0])
+        uin, u, vpn  =   0,0,0
+
+        for n, p in enumerate(self.t1):
+
+            if(n>0):
+                
+                uin =   self.IN(v_in[n-1],v_pn[n-1])
+                u, vpn  =   self.PN(uin,v_pn[n-1])
+                u_pn    =   np.append(u_pn,[u])
+                v_pn    =   np.append(v_pn,[vpn])
+                v_in    =   np.append(v_in,[uin])
+        
+        return  v_in, u_pn, v_pn, self.t1
+
+
+    def PN(self,v_in,v_pn): 
+
+        uu  =   self.Bpn + self.wpn* v_pn + self.win_pn* v_in
+        dv  =   (-v_pn+ self.tf_Glu(uu))* self.dt / self.tau_PN       
+        vv  =   v_pn + dv* self.dt
+        
+        return  uu, vv
+            
+
+    def IN(self,v_in,v_pn): 
+        
+        uu  =   self.Bin  + self.win * v_in + self.wpn_in* v_pn
+        dv  =   (-v_in+ self.tf_GABA(uu))* self.dt / self.tau_IN
+        vv  =   v_in+ dv* self.dt
+          
+        return  vv
+
+
+I=np.zeros(25)
+I[13:16]=10.
+
+x   =   circuit_motif(I,["5-HT2A"],[900,200])
+"""
+He, U, V, t= x.PN()
+"""
+R_IN, inw, R_PN, t= x.circuit()
+
+
+
+fig=plt.figure()
+fig=plt.title('STEP3: Circuit motif units rate')
+"plt.plot(t,He,'k',label='feedfwrd rate')"
+plt.plot(t,R_PN,'r',label='Cicuit rate')
+plt.plot(t,R_IN,'k',label='IN Unit rate')
+plt.plot(t,inw,'b',label='rate into PN Unit')
+plt.ylabel('firing rate')
+plt.xlabel('time')
+plt.legend()
+
+plt.show()
