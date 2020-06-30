@@ -1,0 +1,157 @@
+import  math
+import  numpy   as np
+from    scipy   import  signal
+import  scipy   as sp
+import matplotlib.pyplot as plt 
+
+class circuit_motif():
+
+    def __init__(self,Tau):
+
+        self.dt =   .005
+        self.t  =   sp.arange(-100,100, self.dt)
+        self.t1 =   sp.arange(0,5, self.dt)
+
+
+        #persistance firing rate, and delay#    
+        self.pr =   10
+        self.d1 =   0
+        self.d2 =   0
+        self.d  =   1
+        self.Bpn  =   16
+        self.Bin  =   13
+        
+        #Synaptic weight, and signal speed
+        self.wpn_in =   .5      
+        self.win_pn =   -1      
+        self.wpn    =   .8      
+        self.win    =   -.1   
+
+        self.tau_PN =   Tau     
+        self.tau_IN =   Tau     
+
+
+    def tf_GABA(self,r):    
+        """
+        y   =   10/ (1+ np.exp(-1*(r-7)))
+        """
+        y   =   r
+        if(r<0):
+            y   =   0
+        
+        return  y 
+        
+
+    def tf_Glu(self,r):    
+
+        return 30/ (1+ np.exp(-.2*(r-8)))
+
+    def circuit(self): 
+        
+        u_pn, v_pn  =   [], []
+        v_in  =   []
+        uin, u, vpn =   0, 0, 0
+        in0, pn0    =   0.5, 1
+
+        for n, p in enumerate(self.t1):
+            if(n==0):
+                uin =   self.IN(in0,pn0,self.dt)
+                u, vpn  =   self.PN(in0,pn0,self.dt)
+
+            else:
+                
+                uin =   self.IN(v_in[n-1],v_pn[n-1],self.dt)
+                u, vpn  =   self.PN(v_in[n-1],v_pn[n-1],self.dt)
+                
+        u_pn    =   np.append(u_pn,[u])
+        v_pn    =   np.append(v_pn,[vpn])
+        v_in    =   np.append(v_in,[uin])
+
+        return  v_in, u_pn, v_pn, self.t1
+
+
+    def PN(self,v_in,v_pn,dt): 
+
+        uu  =   self.Bpn + self.wpn* v_pn + self.win_pn* v_in
+        dv  =   (-v_pn+ self.tf_Glu(uu))* dt / self.tau_PN       
+        vv  =   v_pn + dv
+        
+        return  uu, vv
+            
+
+    def IN(self,v_in,v_pn,dt): 
+        
+        uu  =   self.Bin  + self.win * v_in + self.wpn_in* v_pn
+        dv  =   (-v_in+ self.tf_GABA(uu))* dt / self.tau_IN
+        vv  =   v_in+ dv
+          
+        return  vv
+
+    def _nullcline(self):
+
+        _step = .02
+        _stop = 30
+        _stop1  =   10
+        points = np.arange(_step, _stop, _step)
+        points1 =   np.arange(_step, _stop1, _step)
+        
+        IN = np.zeros((len(points), 1))
+        PN = np.zeros((len(points1), 1))
+
+        for e_idx, e in enumerate(points):
+            IN[e_idx] = 1 / self.win_pn* (-5*math.log(30/e - 1) - self.Bpn - self.wpn * e + 8)
+
+        for i_idx, i in enumerate(points1):
+           
+            if (i!=0):    
+                PN[i_idx] = 1/self.wpn_in *(1-self.win*i-self.Bin)
+            else:
+                print('error')
+            
+        return IN,PN,points,points1
+        
+        
+        
+tau=.01
+x   =   circuit_motif(tau)
+
+#plotting firing rates over time
+R_IN, inw, R_PN, t =x.circuit()
+fig=plt.figure()
+plt.title('IN_Tau={},   PN_Tau={} rate'.format(tau,tau))
+"plt.plot(t,He,'k',label='feedfwrd rate')"
+plt.plot(t,R_PN,'r',label='PN rate')
+plt.plot(t,R_IN,'k',label='IN rate')
+plt.plot(t,inw,'b',label='rate into PN Unit')
+plt.ylabel('firing rate')
+plt.xlabel('time')
+plt.legend(loc='upper right')
+
+     
+#plotting phase plane analysis
+XX,YY, points,points1=x._nullcline()
+fig1=plt.figure()
+plt.plot(XX,points, label=r'$\frac{dE}{dt}=0$', linestyle='-.',color='r',linewidth=0.8)
+plt.plot(points1,YY,label=r'$\frac{dI}{dt}=0$', linestyle='-.', color='g',linewidth=0.8)
+plt.plot(R_IN, R_PN, label='XY trajectory', color='b',linewidth=1)
+plt.title('IN_Tau={},   PN_Tau={} rate'.format(tau,tau))
+plt.ylabel('Y')
+plt.xlabel('X')
+
+#To sketch the flow vectors 
+num_points = 30
+pop = [i/float(num_points)+i for i in range(num_points+1)]
+
+for e in pop:
+    for i in pop:
+        t = 0
+        dt = tau/5
+        ii  =   x.IN(i,e,dt)
+        ue, ee  =   x.PN(i,e,dt)
+        "print([i,ii])"
+        "print([e,ee])"
+        plt.plot([i,ii], [e,ee],color='#111111',linewidth=0.4)
+        plt.plot([i], [e],color='#333333',marker='.',markersize=.5*(abs(e-ee)+abs(i-ii)))
+
+plt.legend(loc='upper right')
+plt.show()   
