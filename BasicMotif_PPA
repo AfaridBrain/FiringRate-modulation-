@@ -63,9 +63,9 @@ class circuit_motif():
                 uin =   self.IN(v_in[n-1],v_pn[n-1],self.dt)
                 u, vpn  =   self.PN(v_in[n-1],v_pn[n-1],self.dt)
                 
-        u_pn    =   np.append(u_pn,[u])
-        v_pn    =   np.append(v_pn,[vpn])
-        v_in    =   np.append(v_in,[uin])
+            u_pn    =   np.append(u_pn,[u])
+            v_pn    =   np.append(v_pn,[vpn])
+            v_in    =   np.append(v_in,[uin])
 
         return  v_in, u_pn, v_pn, self.t1
 
